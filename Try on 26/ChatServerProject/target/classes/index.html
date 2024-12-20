@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Chat Room</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #f3f4f6;
+            color: #333;
+        }
+
+        .chat-container {
+            width: 90%;
+            max-width: 600px;
+            height: 80%;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            padding: 20px;
+            background: #4a90e2;
+            color: #fff;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #eef2f5;
+        }
+
+        .chat-messages div {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 70%;
+        }
+
+        .chat-messages .user-message {
+            background: #4a90e2;
+            color: #fff;
+            align-self: flex-end;
+        }
+
+        .chat-messages .other-message {
+            background: #fff;
+            border: 1px solid #ddd;
+            align-self: flex-start;
+        }
+
+        .chat-footer {
+            display: flex;
+            padding: 15px;
+            border-top: 1px solid #ddd;
+            background: #f9f9f9;
+        }
+
+        .chat-footer input {
+            flex: 1;
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+
+        .chat-footer button {
+            padding: 10px 15px;
+            background: #4a90e2;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .chat-footer button:hover {
+            background: #3a78c4;
+        }
+
+        .file-upload {
+            margin-right: 10px;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .file-upload label {
+            padding: 10px;
+            background: #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .file-upload input {
+            display: none;
+        }
+
+            .timestamp {
+        font-size: 0.9em;
+        color: #888; /* Grey for timestamps */
+        margin-right: 5px;
+    }
+    .username {
+        font-weight: bold;
+        color: #4a90e2; /* Blue for usernames */
+        margin-right: 5px;
+    }
+    .text {
+        font-size: 1em;
+        color: #333; /* Default text color */
+    }
+    .message {
+        margin-bottom: 10px; /* Space between messages */
+        padding: 5px 10px;
+        border-radius: 5px;
+        background: #f9f9f9;
+        border: 1px solid #ddd;
+    }
+
+
+
+    </style>
+</head>
+<body>
+<div class="chat-container">
+    <div class="chat-header">
+        Modern Chat Room
+    </div>
+    <div class="chat-messages" id="messages">
+        <!-- Chat messages will appear here -->
+    </div>
+    <div class="chat-footer">
+        <div class="file-upload">
+            <label for="fileInput">📎</label>
+            <input id="fileInput" type="file" accept="image/png,video/mp4">
+        </div>
+        <input id="input" type="text" placeholder="Type your message">
+        <button id="send">Send</button>
+    </div>
+</div>
+
+<script>
+    const messagesDiv = document.getElementById('messages');
+    const input = document.getElementById('input');
+    const sendButton = document.getElementById('send');
+    const fileInput = document.getElementById('fileInput');
+
+    let username = null;
+
+    while (!username) {
+        username = prompt("Enter your username:");
+    }
+
+   const ws = new WebSocket('wss://9154-203-78-147-8.ngrok-free.app/chat');
+
+    ws.onopen = () => {
+        ws.send(username);
+    };
+
+ws.onmessage = (event) => {
+    let data = event.data;
+
+    try {
+        // Check if the data is JSON (chat history or structured message)
+        let messages = JSON.parse(data);
+
+        if (Array.isArray(messages)) {
+            // If it's a chat history array
+            messages.forEach(message => {
+                appendMessage(message.timestamp, message.username, message.text);
+            });
+        } else {
+            // If it's a single message object
+            appendMessage(messages.timestamp, messages.username, messages.text);
+        }
+    } catch (e) {
+        // If the message is not JSON, append it as a plain message
+        console.error("Failed to parse JSON:", e);
+        const newMessage = document.createElement('div');
+        newMessage.classList.add('other-message');
+        newMessage.innerText = data; // Append raw data
+        messagesDiv.appendChild(newMessage);
+    }
+
+    // Scroll to the bottom after appending
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+};
+
+function appendMessage(timestamp, username, text) {
+    const newMessage = document.createElement('div');
+    newMessage.classList.add('message'); // Use the 'message' class for consistent styling
+    newMessage.innerHTML = `
+        <div><span class="timestamp">[${timestamp}]</span>
+        <strong class="username">${username}</strong>:
+        <span class="text">${text}</span></div>`;
+    messagesDiv.appendChild(newMessage); // Append messages at the bottom
+}
+
+
+
+
+   function fetchMessages() {
+    fetch('/getMessages')  // Fetch messages sorted by timestamp ASC from the backend
+        .then(response => response.json())
+        .then(messages => {
+            messages.forEach(message => {
+                const newMessage = document.createElement('div');
+                newMessage.classList.add('message'); // Use the 'message' class for consistent styling
+                newMessage.innerHTML = `
+                    <div><span class="timestamp">[${message.timestamp}]</span>
+                    <strong class="username">${message.username}</strong>:
+                    <span class="text">${message.text}</span></div>`;
+                messagesDiv.appendChild(newMessage);  // Append messages at the bottom
+            });
+
+            // Scroll to the bottom after loading all messages
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+}
+
+
+
+
+    // Call fetchMessages on page load to display previous messages
+    window.onload = fetchMessages;
+
+    sendButton.onclick = () => {
+        const message = input.value;
+        if (message) {
+            ws.send(message);
+            input.value = '';
+        }
+    };
+
+    fileInput.onchange = () => {
+        const file = fileInput.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                ws.send(reader.result);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+    };
+
+    input.addEventListener("keypress", (event) => {
+        if (event.key === "Enter") {
+            sendButton.click();
+        }
+    });
+</script>
+</body>
+</html>
